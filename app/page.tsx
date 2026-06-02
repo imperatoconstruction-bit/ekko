@@ -4,7 +4,7 @@ export default function HomePage() {
       <p className="eyebrow">ekkojoin.com</p>
       <h1>More than a platform. A place to belong.</h1>
       <p>EKKO is a Jesus-centered community movement for prayer, praise reports, Scripture, groups, events, and authentic connection.</p>
-      <a className="btn primary" href="/signup">Join EKKO</a>
+      <a className="btn primary" href="/signup">Join the Movement</a>
     </main>
   );
 }
