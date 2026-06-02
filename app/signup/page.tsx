@@ -13,14 +13,19 @@ export default function SignupPage() {
     const password = String(form.get('password'));
     const first_name = String(form.get('first_name'));
     const last_name = String(form.get('last_name'));
-    const display_name = String(form.get('display_name'));
     const location = String(form.get('location'));
 
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return setMessage(error.message);
 
     if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').upsert({ id: data.user.id, first_name, last_name, display_name, location });
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: data.user.id,
+        first_name,
+        last_name,
+        display_name: first_name,
+        location
+      });
       if (profileError) return setMessage(`Account created, but profile did not save: ${profileError.message}. Login and complete your profile.`);
     }
 
@@ -39,7 +44,6 @@ export default function SignupPage() {
       <form className="form" onSubmit={handleSubmit}>
         <input name="first_name" placeholder="First name" required />
         <input name="last_name" placeholder="Last name" required />
-        <input name="display_name" placeholder="Display name" required />
         <input name="location" placeholder="City / State" />
         <input name="email" type="email" placeholder="Email" required />
         <input name="password" type="password" placeholder="Password" required minLength={6} />
