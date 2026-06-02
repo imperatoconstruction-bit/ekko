@@ -5,10 +5,12 @@ export default function HomePage() {
         <nav className="nav container">
           <a className="brand" href="/">EKKO</a>
           <div className="nav-links">
-            <a href="#platform">Platform</a>
+            <a href="/vision">Vision</a>
+            <a href="/about">About</a>
+            <a href="/resources">Resources</a>
+            <a href="/book">Book</a>
+            <a href="/groups">Groups</a>
             <a href="/community">Community</a>
-            <a href="/prayer">Prayer</a>
-            <a href="/praise">Praise</a>
             <a href="/login">Login</a>
             <a className="nav-cta" href="/signup">Join</a>
           </div>
@@ -117,6 +119,7 @@ export default function HomePage() {
               A new book by Brandon Imperato about rediscovering what the church was
               meant to be. Coming Summer 2026.
             </p>
+            <a className="btn primary" href="/book">Explore the Book</a>
           </div>
           <div>
             <p className="eyebrow">Resources</p>
@@ -125,6 +128,7 @@ export default function HomePage() {
               Books, devotionals, group guides, and resources designed to move people
               from information to formation.
             </p>
+            <a className="btn" href="/resources">View Resources</a>
           </div>
         </div>
       </section>
