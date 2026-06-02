@@ -20,7 +20,8 @@ export default function SignupPage() {
     if (error) return setMessage(error.message);
 
     if (data.user) {
-      await supabase.from('profiles').upsert({ id: data.user.id, first_name, last_name, display_name, location });
+      const { error: profileError } = await supabase.from('profiles').upsert({ id: data.user.id, first_name, last_name, display_name, location });
+      if (profileError) return setMessage(`Account created, but profile did not save: ${profileError.message}. Login and complete your profile.`);
     }
 
     setMessage('Account created. Check your email if confirmation is required, then login.');
@@ -28,8 +29,13 @@ export default function SignupPage() {
 
   return (
     <main className="container section">
+      <div className="hero-actions">
+        <a className="btn" href="/">Home</a>
+        <a className="btn" href="/login">Login</a>
+      </div>
       <p className="eyebrow">Create account</p>
       <h1>Join EKKO.</h1>
+      <p>Create your member profile to access the Prayer Wall, Praise Reports, Community Feed, and Dashboard.</p>
       <form className="form" onSubmit={handleSubmit}>
         <input name="first_name" placeholder="First name" required />
         <input name="last_name" placeholder="Last name" required />
