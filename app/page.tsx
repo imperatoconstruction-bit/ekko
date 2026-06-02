@@ -12,7 +12,7 @@ export default function HomePage() {
             <a href="/groups">Groups</a>
             <a href="/community">Community</a>
             <a href="/login">Login</a>
-            <a className="nav-cta" href="/signup">Join</a>
+            <a className="nav-cta" href="/signup">Join EKKO</a>
           </div>
         </nav>
       </header>
