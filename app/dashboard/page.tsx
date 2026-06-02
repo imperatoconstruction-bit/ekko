@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function DashboardPage() {
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('friend');
+  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(true);
   const [prayers, setPrayers] = useState<any[]>([]);
   const [praises, setPraises] = useState<any[]>([]);
@@ -18,11 +20,14 @@ export default function DashboardPage() {
         return;
       }
       setEmail(data.user.email || '');
-      const [{ data: prayerData }, { data: praiseData }, { data: postData }] = await Promise.all([
+      const [{ data: profile }, { data: prayerData }, { data: praiseData }, { data: postData }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', data.user.id).single(),
         supabase.from('prayer_requests').select('*').order('created_at', { ascending: false }).limit(3),
         supabase.from('praise_reports').select('*').order('created_at', { ascending: false }).limit(3),
         supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(3)
       ]);
+      setDisplayName(profile?.display_name || profile?.first_name || 'friend');
+      setLocation(profile?.location || '');
       setPrayers(prayerData || []);
       setPraises(praiseData || []);
       setPosts(postData || []);
@@ -41,8 +46,8 @@ export default function DashboardPage() {
   return (
     <main className="container section">
       <p className="eyebrow">Member Dashboard</p>
-      <h1>Welcome back.</h1>
-      <p>{email}</p>
+      <h1>Welcome back, {displayName}.</h1>
+      <p>{location ? location : email}</p>
       <button className="btn" onClick={logout}>Logout</button>
 
       <section className="dashboard section">
@@ -83,7 +88,7 @@ export default function DashboardPage() {
         <div className="cards">
           <div className="card"><h3>Upcoming Events</h3><p>Prayer nights, worship nights, and community gatherings are coming soon.</p></div>
           <div className="card"><h3>Groups Near You</h3><p>Young families, young adults, prayer circles, and discipleship groups are coming soon.</p></div>
-          <div className="card"><h3>Your Profile</h3><p>Profile pages are coming next so members can be known and connected.</p><a href="/profile">View Profile</a></div>
+          <div className="card"><h3>Your Profile</h3><p>Update your bio, location, and member details.</p><a href="/profile">View Profile</a></div>
         </div>
       </section>
     </main>
