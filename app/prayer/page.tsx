@@ -8,10 +8,22 @@ export default function PrayerPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [prayers, setPrayers] = useState<any[]>([]);
+  const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({});
 
   async function loadPrayers() {
     const { data } = await supabase.from('prayer_requests').select('*').order('created_at', { ascending: false }).limit(20);
     setPrayers(data || []);
+    const ids = (data || []).map((item) => item.id);
+    if (ids.length > 0) {
+      const { data: reactions } = await supabase.from('prayer_reactions').select('*').in('prayer_id', ids);
+      const counts: Record<string, Record<string, number>> = {};
+      (reactions || []).forEach((reaction) => {
+        const prayerId = String(reaction.prayer_id);
+        if (!counts[prayerId]) counts[prayerId] = {};
+        counts[prayerId][reaction.reaction_type] = (counts[prayerId][reaction.reaction_type] || 0) + 1;
+      });
+      setReactionCounts(counts);
+    }
   }
 
   useEffect(() => {
@@ -43,6 +55,12 @@ export default function PrayerPage() {
     loadPrayers();
   }
 
+  async function addReaction(prayerId: any, reactionType: string) {
+    if (!userId) return (window.location.href = '/login');
+    await supabase.from('prayer_reactions').insert({ prayer_id: prayerId, user_id: userId, reaction_type: reactionType });
+    loadPrayers();
+  }
+
   if (loading) return <main className="container section"><p>Loading...</p></main>;
 
   if (!userId) {
@@ -68,14 +86,21 @@ export default function PrayerPage() {
         <p>{message}</p>
       </form>
       <div className="feed">
-        {prayers.map((prayer) => (
-          <div className="post" key={prayer.id}>
-            <small>Prayer Request</small>
-            <h3>{prayer.title}</h3>
-            <p>{prayer.body}</p>
-            <p>🙏 {prayer.prayer_count || 0} praying</p>
-          </div>
-        ))}
+        {prayers.map((prayer) => {
+          const counts = reactionCounts[String(prayer.id)] || {};
+          return (
+            <div className="post" key={prayer.id}>
+              <small>Prayer Request</small>
+              <h3>{prayer.title}</h3>
+              <p>{prayer.body}</p>
+              <div className="reaction-row">
+                <button className="reaction-btn" onClick={() => addReaction(prayer.id, 'praying')}>🙏 I&apos;m Praying ({counts.praying || 0})</button>
+                <button className="reaction-btn" onClick={() => addReaction(prayer.id, 'encouraged')}>❤️ Encouraged ({counts.encouraged || 0})</button>
+                <button className="reaction-btn" onClick={() => addReaction(prayer.id, 'follow')}>📌 Follow ({counts.follow || 0})</button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </main>
   );
