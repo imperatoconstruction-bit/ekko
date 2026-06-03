@@ -1,4 +1,5 @@
 import './globals.css';
+import AuthNav from './components/AuthNav';
 
 export const metadata = {
   title: 'EKKO | A Place to Belong',
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthNav />
+        {children}
+      </body>
     </html>
   );
 }
