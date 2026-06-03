@@ -10,6 +10,7 @@ export default function PrayerPage() {
   const [prayers, setPrayers] = useState<any[]>([]);
   const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({});
   const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [showForm, setShowForm] = useState(false);
 
   async function loadPrayers() {
     const { data } = await supabase.from('prayer_requests').select('*').order('created_at', { ascending: false }).limit(20);
@@ -32,6 +33,9 @@ export default function PrayerPage() {
         grouped[key].push(comment);
       });
       setComments(grouped);
+    } else {
+      setReactionCounts({});
+      setComments({});
     }
   }
 
@@ -54,15 +58,18 @@ export default function PrayerPage() {
     if (!userId) return (window.location.href = '/login');
     const { error } = await supabase.from('prayer_requests').insert({ user_id: userId, title, body });
     if (error) return setMessage(error.message);
-    setMessage('Prayer request submitted.');
     event.currentTarget.reset();
-    loadPrayers();
+    setShowForm(false);
+    setMessage('Prayer request submitted.');
+    await loadPrayers();
   }
 
   async function addReaction(prayerId: any, reactionType: string) {
     if (!userId) return (window.location.href = '/login');
-    await supabase.from('prayer_reactions').insert({ prayer_id: prayerId, user_id: userId, reaction_type: reactionType });
-    loadPrayers();
+    const { error } = await supabase.from('prayer_reactions').insert({ prayer_id: prayerId, user_id: userId, reaction_type: reactionType });
+    if (error) return setMessage(error.message);
+    setMessage('Reaction added.');
+    await loadPrayers();
   }
 
   async function addComment(event: React.FormEvent<HTMLFormElement>, prayerId: any) {
@@ -71,9 +78,21 @@ export default function PrayerPage() {
     const form = new FormData(event.currentTarget);
     const body = String(form.get('comment'));
     if (!body.trim()) return;
-    await supabase.from('comments').insert({ user_id: userId, content_type: 'prayer', content_id: prayerId, body });
+    const { error } = await supabase.from('comments').insert({ user_id: userId, content_type: 'prayer', content_id: prayerId, body });
+    if (error) return setMessage(error.message);
     event.currentTarget.reset();
-    loadPrayers();
+    setMessage('Comment posted.');
+    await loadPrayers();
+  }
+
+  async function deletePrayer(prayerId: any) {
+    if (!confirm('Delete this prayer request?')) return;
+    await supabase.from('comments').delete().eq('content_type', 'prayer').eq('content_id', prayerId);
+    await supabase.from('prayer_reactions').delete().eq('prayer_id', prayerId);
+    const { error } = await supabase.from('prayer_requests').delete().eq('id', prayerId).eq('user_id', userId);
+    if (error) return setMessage(error.message);
+    setMessage('Prayer request deleted.');
+    await loadPrayers();
   }
 
   if (loading) return <main className="container section"><p>Loading...</p></main>;
@@ -81,18 +100,22 @@ export default function PrayerPage() {
 
   return (
     <main className="container section">
-      <p className="eyebrow">Prayer Wall</p>
+      <div className="hero-actions"><p className="eyebrow">Prayer Wall</p><button className="btn primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Close' : 'Share Prayer'}</button></div>
       <h1>Carry burdens together.</h1>
-      <form className="form" onSubmit={handleSubmit}>
-        <input name="title" placeholder="Prayer title" required />
-        <textarea name="body" placeholder="How can we pray?" required />
-        <button className="btn primary" type="submit">Submit Prayer</button>
-        <p>{message}</p>
-      </form>
+      <p>Share a prayer request, pray for others, and encourage the EKKO community.</p>
+      {message && <div className="notice-card">{message}</div>}
+      {showForm && (
+        <form className="form" onSubmit={handleSubmit}>
+          <input name="title" placeholder="Prayer title" required />
+          <textarea name="body" placeholder="How can we pray?" required />
+          <button className="btn primary" type="submit">Submit Prayer</button>
+        </form>
+      )}
       <div className="feed">
         {prayers.map((prayer) => {
           const counts = reactionCounts[String(prayer.id)] || {};
           const prayerComments = comments[String(prayer.id)] || [];
+          const isOwner = prayer.user_id === userId;
           return (
             <div className="post" key={prayer.id}>
               <small>Prayer Request</small><h3>{prayer.title}</h3><p>{prayer.body}</p>
@@ -101,6 +124,7 @@ export default function PrayerPage() {
                 <button className="reaction-btn" onClick={() => addReaction(prayer.id, 'encouraged')}>❤️ Encouraged ({counts.encouraged || 0})</button>
                 <button className="reaction-btn" onClick={() => addReaction(prayer.id, 'follow')}>📌 Follow ({counts.follow || 0})</button>
                 <span className="reaction-btn">💬 {prayerComments.length} Comments</span>
+                {isOwner && <button className="reaction-btn" onClick={() => deletePrayer(prayer.id)}>Delete</button>}
               </div>
               <div className="comment-list">{prayerComments.map((comment) => <p key={comment.id}>💬 {comment.body}</p>)}</div>
               <form className="comment-form" onSubmit={(event) => addComment(event, prayer.id)}><input name="comment" placeholder="Write a prayer or encouragement..." /><button className="btn" type="submit">Comment</button></form>
