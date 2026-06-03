@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function CommunityPage() {
   const [posts, setPosts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -12,6 +13,13 @@ export default function CommunityPage() {
   async function loadPosts() {
     const { data } = await supabase.from('community_posts').select('*').order('created_at', { ascending: false });
     setPosts(data || []);
+    const userIds = Array.from(new Set((data || []).map((post) => post.user_id).filter(Boolean)));
+    if (userIds.length > 0) {
+      const { data: profileData } = await supabase.from('profiles').select('*').in('id', userIds);
+      const profileMap: Record<string, any> = {};
+      (profileData || []).forEach((profile) => { profileMap[profile.id] = profile; });
+      setProfiles(profileMap);
+    }
   }
 
   useEffect(() => {
@@ -76,13 +84,26 @@ export default function CommunityPage() {
         <p>{message}</p>
       </form>
       <div className="feed">
-        {posts.map((post) => (
-          <div className="post" key={post.id}>
-            <small>{post.post_type || 'Community'}</small>
-            <h3>{post.title}</h3>
-            <p>{post.body}</p>
-          </div>
-        ))}
+        {posts.map((post) => {
+          const profile = profiles[post.user_id] || {};
+          const name = profile.first_name || profile.display_name || 'EKKO Member';
+          return (
+            <div className="post" key={post.id}>
+              <div className="post-author">
+                <div className="avatar-chip">{name.charAt(0)}</div>
+                <div><strong>{name}</strong><p>{profile.location || 'EKKO Community'}</p></div>
+              </div>
+              <small>{post.post_type || 'Community'}</small>
+              <h3>{post.title}</h3>
+              <p>{post.body}</p>
+              <div className="reaction-row">
+                <button className="reaction-btn">❤️ Encourage</button>
+                <button className="reaction-btn">💬 Comment</button>
+                <button className="reaction-btn">📖 Scripture</button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </main>
   );
