@@ -22,9 +22,9 @@ export default function DashboardPage() {
       setEmail(data.user.email || '');
       const [{ data: profile }, { data: prayerData }, { data: praiseData }, { data: postData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', data.user.id).single(),
-        supabase.from('prayer_requests').select('*').order('created_at', { ascending: false }).limit(3),
-        supabase.from('praise_reports').select('*').order('created_at', { ascending: false }).limit(3),
-        supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(3)
+        supabase.from('prayer_requests').select('*').order('created_at', { ascending: false }).limit(4),
+        supabase.from('praise_reports').select('*').order('created_at', { ascending: false }).limit(4),
+        supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(4)
       ]);
       setDisplayName(profile?.display_name || profile?.first_name || 'friend');
       setLocation(profile?.location || '');
@@ -43,52 +43,62 @@ export default function DashboardPage() {
 
   if (loading) return <main className="container section"><p>Loading dashboard...</p></main>;
 
+  const notifications = [
+    prayers.length > 0 ? `${prayers.length} recent prayer request${prayers.length > 1 ? 's' : ''} need covering.` : 'No prayer requests yet. Be the first to share or pray.',
+    praises.length > 0 ? `${praises.length} praise report${praises.length > 1 ? 's' : ''} are waiting to be celebrated.` : 'No praise reports yet. Share what God is doing.',
+    posts.length > 0 ? `${posts.length} community conversation${posts.length > 1 ? 's' : ''} are active.` : 'No community posts yet. Start a conversation.'
+  ];
+
   return (
     <main className="container section">
-      <p className="eyebrow">Member Dashboard</p>
-      <h1>Welcome back, {displayName}.</h1>
-      <p>{location ? location : email}</p>
-      <button className="btn" onClick={logout}>Logout</button>
-
-      <section className="dashboard section">
+      <section className="grid">
+        <div>
+          <p className="eyebrow">Member Home</p>
+          <h1>Good to see you, {displayName}.</h1>
+          <p>{location ? location : email}</p>
+          <div className="hero-actions">
+            <a className="btn primary" href="/prayer">Prayer Request</a>
+            <a className="btn" href="/praise">Praise Report</a>
+            <a className="btn" href="/community">Community Post</a>
+            <button className="btn" onClick={logout}>Logout</button>
+          </div>
+        </div>
         <div className="card">
           <p className="eyebrow">Today&apos;s Word</p>
           <h2>Stir one another up.</h2>
           <p>Hebrews 10:24-25 — Let us consider how to stir up one another to love and good works.</p>
           <a className="btn primary" href="/community">Reflect with the community</a>
         </div>
-        <div className="card">
-          <p className="eyebrow">Quick Actions</p>
-          <h2>What do you want to share?</h2>
-          <a className="btn primary" href="/prayer">Prayer Request</a>
-          <a className="btn" href="/praise">Praise Report</a>
-          <a className="btn" href="/community">Community Post</a>
+      </section>
+
+      <section className="section">
+        <div className="cards">
+          {notifications.map((note, index) => <div className="notice-card" key={index}>{note}</div>)}
         </div>
       </section>
 
-      <section className="cards">
+      <section className="dashboard">
         <div className="card">
-          <h3>Recent Prayers</h3>
-          {prayers.length === 0 ? <p>No prayer requests yet.</p> : prayers.map((item) => <p key={item.id}>{item.title}</p>)}
+          <h3>Recent Prayer Activity</h3>
+          {prayers.length === 0 ? <p>No prayer requests yet.</p> : prayers.map((item) => <p key={item.id}>🙏 {item.title}</p>)}
           <a href="/prayer">Open Prayer Wall</a>
         </div>
         <div className="card">
-          <h3>Recent Praise</h3>
-          {praises.length === 0 ? <p>No praise reports yet.</p> : praises.map((item) => <p key={item.id}>{item.title}</p>)}
+          <h3>Recent Praise Activity</h3>
+          {praises.length === 0 ? <p>No praise reports yet.</p> : praises.map((item) => <p key={item.id}>🙌 {item.title}</p>)}
           <a href="/praise">Open Praise Reports</a>
-        </div>
-        <div className="card">
-          <h3>Community Activity</h3>
-          {posts.length === 0 ? <p>No community posts yet.</p> : posts.map((item) => <p key={item.id}>{item.title}</p>)}
-          <a href="/community">Open Community</a>
         </div>
       </section>
 
       <section className="section">
         <div className="cards">
-          <div className="card"><h3>Upcoming Events</h3><p>Prayer nights, worship nights, and community gatherings are coming soon.</p></div>
-          <div className="card"><h3>Groups Near You</h3><p>Young families, young adults, prayer circles, and discipleship groups are coming soon.</p></div>
-          <div className="card"><h3>Your Profile</h3><p>Update your bio, location, and member details.</p><a href="/profile">View Profile</a></div>
+          <div className="card">
+            <h3>Community Discussions</h3>
+            {posts.length === 0 ? <p>No community posts yet.</p> : posts.map((item) => <p key={item.id}>💬 {item.title}</p>)}
+            <a href="/community">Open Community</a>
+          </div>
+          <div className="card"><h3>Groups Near You</h3><p>Young families, young adults, prayer circles, and discipleship groups are coming soon.</p><a href="/groups">Explore Groups</a></div>
+          <div className="card"><h3>Your Profile</h3><p>Update your bio, location, favorite verse, and profile photo.</p><a href="/profile">View Profile</a></div>
         </div>
       </section>
     </main>
