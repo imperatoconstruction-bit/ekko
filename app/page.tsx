@@ -1,22 +1,6 @@
 export default function HomePage() {
   return (
     <main>
-      <header className="site-header">
-        <nav className="nav container">
-          <a className="brand" href="/">EKKO</a>
-          <div className="nav-links">
-            <a href="/vision">Vision</a>
-            <a href="/about">About</a>
-            <a href="/resources">Resources</a>
-            <a href="/book">Book</a>
-            <a href="/groups">Groups</a>
-            <a href="/community">Community</a>
-            <a href="/login">Login</a>
-            <a className="nav-cta" href="/signup">Join EKKO</a>
-          </div>
-        </nav>
-      </header>
-
       <section className="section hero-section">
         <div className="container grid">
           <div>
