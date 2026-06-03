@@ -11,6 +11,7 @@ export default function CommunityPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({});
   const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [showForm, setShowForm] = useState(false);
 
   async function loadPosts() {
     const { data } = await supabase.from('community_posts').select('*').order('created_at', { ascending: false });
@@ -32,7 +33,6 @@ export default function CommunityPage() {
         counts[postId][reaction.reaction_type] = (counts[postId][reaction.reaction_type] || 0) + 1;
       });
       setReactionCounts(counts);
-
       const { data: commentData } = await supabase.from('comments').select('*').eq('content_type', 'community').in('content_id', ids).order('created_at', { ascending: true });
       const grouped: Record<string, any[]> = {};
       (commentData || []).forEach((comment) => {
@@ -41,6 +41,9 @@ export default function CommunityPage() {
         grouped[key].push(comment);
       });
       setComments(grouped);
+    } else {
+      setReactionCounts({});
+      setComments({});
     }
   }
 
@@ -65,14 +68,17 @@ export default function CommunityPage() {
     const { error } = await supabase.from('community_posts').insert({ user_id: userId, title, body, post_type });
     if (error) return setMessage(error.message);
     event.currentTarget.reset();
-    setMessage('Post shared.');
-    loadPosts();
+    setShowForm(false);
+    setMessage('Post shared successfully.');
+    await loadPosts();
   }
 
   async function addReaction(postId: any, reactionType: string) {
     if (!userId) return (window.location.href = '/login');
-    await supabase.from('community_reactions').insert({ post_id: postId, user_id: userId, reaction_type: reactionType });
-    loadPosts();
+    const { error } = await supabase.from('community_reactions').insert({ post_id: postId, user_id: userId, reaction_type: reactionType });
+    if (error) return setMessage(error.message);
+    setMessage('Reaction added.');
+    await loadPosts();
   }
 
   async function addComment(event: React.FormEvent<HTMLFormElement>, postId: any) {
@@ -81,9 +87,21 @@ export default function CommunityPage() {
     const form = new FormData(event.currentTarget);
     const body = String(form.get('comment'));
     if (!body.trim()) return;
-    await supabase.from('comments').insert({ user_id: userId, content_type: 'community', content_id: postId, body });
+    const { error } = await supabase.from('comments').insert({ user_id: userId, content_type: 'community', content_id: postId, body });
+    if (error) return setMessage(error.message);
     event.currentTarget.reset();
-    loadPosts();
+    setMessage('Comment posted.');
+    await loadPosts();
+  }
+
+  async function deletePost(postId: any) {
+    if (!confirm('Delete this post?')) return;
+    await supabase.from('comments').delete().eq('content_type', 'community').eq('content_id', postId);
+    await supabase.from('community_reactions').delete().eq('post_id', postId);
+    const { error } = await supabase.from('community_posts').delete().eq('id', postId).eq('user_id', userId);
+    if (error) return setMessage(error.message);
+    setMessage('Post deleted.');
+    await loadPosts();
   }
 
   if (loading) return <main className="container section"><p>Loading...</p></main>;
@@ -91,21 +109,25 @@ export default function CommunityPage() {
 
   return (
     <main className="container section">
-      <p className="eyebrow">Community Feed</p>
+      <div className="hero-actions"><p className="eyebrow">Community Feed</p><button className="btn primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Close' : 'Post'}</button></div>
       <h1>Community</h1>
-      <form className="form" onSubmit={handleSubmit}>
-        <input name="title" placeholder="Title" required />
-        <select name="post_type"><option value="discussion">Discussion</option><option value="scripture">Scripture Reflection</option><option value="question">Question</option><option value="testimony">Testimony</option></select>
-        <textarea name="body" placeholder="Share something..." required />
-        <button className="btn primary" type="submit">Post</button>
-        <p>{message}</p>
-      </form>
+      <p>Share Scripture, ask questions, start discussions, and encourage the EKKO community.</p>
+      {message && <div className="notice-card">{message}</div>}
+      {showForm && (
+        <form className="form" onSubmit={handleSubmit}>
+          <input name="title" placeholder="Title" required />
+          <select name="post_type"><option value="discussion">Discussion</option><option value="scripture">Scripture Reflection</option><option value="question">Question</option><option value="testimony">Testimony</option></select>
+          <textarea name="body" placeholder="Share something..." required />
+          <button className="btn primary" type="submit">Post</button>
+        </form>
+      )}
       <div className="feed">
         {posts.map((post) => {
           const profile = profiles[post.user_id] || {};
           const name = profile.first_name || profile.display_name || 'EKKO Member';
           const counts = reactionCounts[String(post.id)] || {};
           const postComments = comments[String(post.id)] || [];
+          const isOwner = post.user_id === userId;
           return (
             <div className="post" key={post.id}>
               <div className="post-author"><div className="avatar-chip">{name.charAt(0)}</div><div><strong>{name}</strong><p>{profile.location || 'EKKO Community'}</p></div></div>
@@ -114,6 +136,7 @@ export default function CommunityPage() {
                 <button className="reaction-btn" onClick={() => addReaction(post.id, 'encourage')}>❤️ Encourage ({counts.encourage || 0})</button>
                 <button className="reaction-btn" onClick={() => addReaction(post.id, 'scripture')}>📖 Scripture ({counts.scripture || 0})</button>
                 <span className="reaction-btn">💬 {postComments.length} Comments</span>
+                {isOwner && <button className="reaction-btn" onClick={() => deletePost(post.id)}>Delete</button>}
               </div>
               <div className="comment-list">{postComments.map((comment) => <p key={comment.id}>💬 {comment.body}</p>)}</div>
               <form className="comment-form" onSubmit={(event) => addComment(event, post.id)}><input name="comment" placeholder="Add to the conversation..." /><button className="btn" type="submit">Comment</button></form>
