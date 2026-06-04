@@ -10,6 +10,7 @@ export default function PraisePage() {
   const [praises, setPraises] = useState<any[]>([]);
   const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({});
   const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [showForm, setShowForm] = useState(false);
 
   async function loadPraises() {
     const { data } = await supabase.from('praise_reports').select('*').order('created_at', { ascending: false }).limit(20);
@@ -32,6 +33,9 @@ export default function PraisePage() {
         grouped[key].push(comment);
       });
       setComments(grouped);
+    } else {
+      setReactionCounts({});
+      setComments({});
     }
   }
 
@@ -55,15 +59,18 @@ export default function PraisePage() {
     if (!userId) return (window.location.href = '/login');
     const { error } = await supabase.from('praise_reports').insert({ user_id: userId, title, body, category });
     if (error) return setMessage(error.message);
-    setMessage('Praise report shared.');
     event.currentTarget.reset();
-    loadPraises();
+    setShowForm(false);
+    setMessage('Praise report shared.');
+    await loadPraises();
   }
 
   async function addReaction(praiseId: any, reactionType: string) {
     if (!userId) return (window.location.href = '/login');
-    await supabase.from('praise_reactions').insert({ praise_id: praiseId, user_id: userId, reaction_type: reactionType });
-    loadPraises();
+    const { error } = await supabase.from('praise_reactions').insert({ praise_id: praiseId, user_id: userId, reaction_type: reactionType });
+    if (error) return setMessage(error.message);
+    setMessage('Reaction added.');
+    await loadPraises();
   }
 
   async function addComment(event: React.FormEvent<HTMLFormElement>, praiseId: any) {
@@ -72,30 +79,45 @@ export default function PraisePage() {
     const form = new FormData(event.currentTarget);
     const body = String(form.get('comment'));
     if (!body.trim()) return;
-    await supabase.from('comments').insert({ user_id: userId, content_type: 'praise', content_id: praiseId, body });
+    const { error } = await supabase.from('comments').insert({ user_id: userId, content_type: 'praise', content_id: praiseId, body });
+    if (error) return setMessage(error.message);
     event.currentTarget.reset();
-    loadPraises();
+    setMessage('Comment posted.');
+    await loadPraises();
+  }
+
+  async function deletePraise(praiseId: any) {
+    if (!confirm('Delete this praise report?')) return;
+    await supabase.from('comments').delete().eq('content_type', 'praise').eq('content_id', praiseId);
+    await supabase.from('praise_reactions').delete().eq('praise_id', praiseId);
+    const { error } = await supabase.from('praise_reports').delete().eq('id', praiseId).eq('user_id', userId);
+    if (error) return setMessage(error.message);
+    setMessage('Praise report deleted.');
+    await loadPraises();
   }
 
   if (loading) return <main className="container section"><p>Loading...</p></main>;
-
   if (!userId) return <main className="container section"><p className="eyebrow">Members Only</p><h1>Join EKKO to view Praise Reports.</h1><p>Praise reports are part of the private EKKO community.</p><a className="btn primary" href="/signup">Create Account</a><a className="btn" href="/login">Login</a></main>;
 
   return (
     <main className="container section">
-      <p className="eyebrow">Praise Reports</p>
-      <h1>Share What God Is Doing.</h1>
-      <form className="form" onSubmit={handleSubmit}>
-        <input name="title" placeholder="Praise report title" required />
-        <select name="category"><option>Answered Prayer</option><option>Provision</option><option>Healing</option><option>Family</option><option>Faith</option><option>Breakthrough</option></select>
-        <textarea name="body" placeholder="What did God do?" required />
-        <button className="btn primary" type="submit">Share Praise</button>
-        <p>{message}</p>
-      </form>
+      <div className="hero-actions"><p className="eyebrow">Praise Reports</p><button className="btn primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Close' : 'Share Praise'}</button></div>
+      <h1>Celebrate what God is doing.</h1>
+      <p>Share testimonies, answered prayers, breakthrough, provision, and moments of God's faithfulness.</p>
+      {message && <div className="notice-card">{message}</div>}
+      {showForm && (
+        <form className="form" onSubmit={handleSubmit}>
+          <input name="title" placeholder="Praise report title" required />
+          <select name="category"><option>Answered Prayer</option><option>Provision</option><option>Healing</option><option>Family</option><option>Faith</option><option>Breakthrough</option></select>
+          <textarea name="body" placeholder="What did God do?" required />
+          <button className="btn primary" type="submit">Share Praise</button>
+        </form>
+      )}
       <div className="feed">
         {praises.map((praise) => {
           const counts = reactionCounts[String(praise.id)] || {};
           const praiseComments = comments[String(praise.id)] || [];
+          const isOwner = praise.user_id === userId;
           return (
             <div className="post" key={praise.id}>
               <small>{praise.category || 'Praise Report'}</small><h3>{praise.title}</h3><p>{praise.body}</p>
@@ -103,6 +125,7 @@ export default function PraisePage() {
                 <button className="reaction-btn" onClick={() => addReaction(praise.id, 'praise_god')}>🙌 Praise God ({counts.praise_god || 0})</button>
                 <button className="reaction-btn" onClick={() => addReaction(praise.id, 'encouraged')}>❤️ Encouraged ({counts.encouraged || 0})</button>
                 <span className="reaction-btn">💬 {praiseComments.length} Comments</span>
+                {isOwner && <button className="reaction-btn" onClick={() => deletePraise(praise.id)}>Delete</button>}
               </div>
               <div className="comment-list">{praiseComments.map((comment) => <p key={comment.id}>💬 {comment.body}</p>)}</div>
               <form className="comment-form" onSubmit={(event) => addComment(event, praise.id)}><input name="comment" placeholder="Celebrate or encourage..." /><button className="btn" type="submit">Comment</button></form>
