@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [prayers, setPrayers] = useState<any[]>([]);
   const [praises, setPraises] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
+  const [devotional, setDevotional] = useState<any>(null);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -19,18 +20,21 @@ export default function DashboardPage() {
         window.location.href = '/login';
         return;
       }
+      const today = new Date().toISOString().slice(0, 10);
       setEmail(data.user.email || '');
-      const [{ data: profile }, { data: prayerData }, { data: praiseData }, { data: postData }] = await Promise.all([
+      const [{ data: profile }, { data: prayerData }, { data: praiseData }, { data: postData }, { data: devotionalData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', data.user.id).single(),
         supabase.from('prayer_requests').select('*').order('created_at', { ascending: false }).limit(4),
         supabase.from('praise_reports').select('*').order('created_at', { ascending: false }).limit(4),
-        supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(4)
+        supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(4),
+        supabase.from('daily_devotionals').select('*').eq('devotional_date', today).maybeSingle()
       ]);
       setDisplayName(profile?.display_name || profile?.first_name || 'friend');
       setLocation(profile?.location || '');
       setPrayers(prayerData || []);
       setPraises(praiseData || []);
       setPosts(postData || []);
+      setDevotional(devotionalData || null);
       setLoading(false);
     }
     loadDashboard();
@@ -65,8 +69,13 @@ export default function DashboardPage() {
         </div>
         <div className="card">
           <p className="eyebrow">Today&apos;s Word</p>
-          <h2>Stir one another up.</h2>
-          <p>Hebrews 10:24-25 — Let us consider how to stir up one another to love and good works.</p>
+          <h2>{devotional?.title || 'Stir one another up.'}</h2>
+          <p><strong>{devotional?.verse_reference || 'Hebrews 10:24-25'}</strong></p>
+          <p>{devotional?.verse_text || 'Let us consider how to stir up one another to love and good works.'}</p>
+          {devotional?.devotional && <p>{devotional.devotional}</p>}
+          {devotional?.reflection_question && <p><strong>Reflect:</strong> {devotional.reflection_question}</p>}
+          {devotional?.prayer && <p><strong>Prayer:</strong> {devotional.prayer}</p>}
+          {devotional?.action_step && <p><strong>Action:</strong> {devotional.action_step}</p>}
           <a className="btn primary" href="/community">Reflect with the community</a>
         </div>
       </section>
